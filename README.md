@@ -1,7 +1,3 @@
-Of course. Here are detailed explanations and answers for all the questions, organized by section.
-
-***
-
 ### Okapi BM25
 
 #### 1. What are the three main components of the Okapi BM25 scoring function?
