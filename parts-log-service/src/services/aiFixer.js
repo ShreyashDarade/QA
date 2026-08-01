@@ -33,10 +33,13 @@ function resolveTargetFile(errorEntry) {
 }
 
 /**
- * Full pipeline for one captured error: locate the file, ask Claude for a
- * fix, apply it, run tests, and only push to prod if tests pass. Every
- * outcome (including dry-run / no-target / test-failure) is recorded back
- * onto the error entry so /api/errors is a complete audit trail.
+ * Single-shot pipeline for one captured error: locate the file, ask Claude
+ * for a fix, apply it, run the local test suite, and push to devBranch if
+ * tests pass. This is the building block services/remediationLoop.js uses
+ * (via resolveTargetFile/runTests) for the full retrieve/analyze/fix/
+ * deploy/restart/test-APIs/monitor cycle that's actually wired into the
+ * server - use this module directly only if you want the fix-and-push-to-
+ * dev step without the live-validation loop around it.
  */
 async function remediate(errorEntry, deps = {}) {
   const client = deps.claudeClient || claudeClient;
