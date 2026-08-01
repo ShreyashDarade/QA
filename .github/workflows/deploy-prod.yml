@@ -24,11 +24,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: parts-log-service/package-lock.json
 
-      # Re-run tests one more time on the exact commit being deployed, as a
-      # final safety net even though the AI fixer already ran them before
-      # pushing.
+      # Re-run lint/format/tests one more time on the exact commit being
+      # deployed, as a final safety net even though the AI fixer already ran
+      # this gate before pushing.
       - run: npm ci
-      - run: npm test
+      - run: npm run verify
 
       # Fill this in with your actual deploy target: build+push a Docker
       # image, `kubectl rollout`, `flyctl deploy`, rsync + restart, whatever
