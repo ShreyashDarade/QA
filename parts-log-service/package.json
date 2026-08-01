@@ -1,0 +1,22 @@
+{
+  "name": "parts-log-service",
+  "version": "1.0.0",
+  "description": "Universal parts activity log with non-AI error capture and AI-driven self-healing deploys.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "simple-git": "^3.25.0",
+    "uuid": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

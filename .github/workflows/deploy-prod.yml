@@ -1,0 +1,40 @@
+name: Deploy to prod
+
+# Fires whenever the prod branch moves - including when the AI fixer
+# (parts-log-service/src/services/deploy.js) pushes a validated, tested fix
+# directly here. This is the "universal" half of that automation: it
+# doesn't know or care whether the push came from a human or the AI
+# remediation pipeline, only that PROD_BRANCH advanced.
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parts-log-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: parts-log-service/package-lock.json
+
+      # Re-run tests one more time on the exact commit being deployed, as a
+      # final safety net even though the AI fixer already ran them before
+      # pushing.
+      - run: npm ci
+      - run: npm test
+
+      # Fill this in with your actual deploy target: build+push a Docker
+      # image, `kubectl rollout`, `flyctl deploy`, rsync + restart, whatever
+      # fits your infra. Left as a placeholder so this workflow works for
+      # any hosting target without assuming one.
+      - name: Deploy
+        run: |
+          echo "TODO: wire up the real deploy step for your infrastructure."
+          echo "Deploying commit $GITHUB_SHA to prod."
