@@ -34,7 +34,6 @@ function errorLogger(onCaptured) {
       Promise.resolve()
         .then(() => onCaptured(entry))
         .catch((fixerErr) => {
-          // eslint-disable-next-line no-console
           console.error('[errorLogger] AI fixer invocation failed:', fixerErr.message);
         });
     }

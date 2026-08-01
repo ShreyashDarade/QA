@@ -46,7 +46,11 @@ test('remediate applies an AI fix, runs tests, and deploys on success', async ()
 
   const result = await remediate(errorEntry, {
     claudeClient: {
-      requestFix: async () => ({ dryRun: false, summary: 'Fixed subtraction to addition', fixedFile }),
+      requestFix: async () => ({
+        dryRun: false,
+        summary: 'Fixed subtraction to addition',
+        fixedFile,
+      }),
     },
     runTests: async () => ({ passed: true }),
     deploy: {
@@ -82,7 +86,11 @@ test('remediate reverts the file and does not deploy when tests fail', async () 
 
   const result = await remediate(errorEntry, {
     claudeClient: {
-      requestFix: async () => ({ dryRun: false, summary: 'bad fix', fixedFile: 'this is not valid js' }),
+      requestFix: async () => ({
+        dryRun: false,
+        summary: 'bad fix',
+        fixedFile: 'this is not valid js',
+      }),
     },
     runTests: async () => ({ passed: false, output: 'SyntaxError' }),
     deploy: {
@@ -113,7 +121,11 @@ test('remediate marks unresolved when the part has no registered file', async ()
   });
 
   const result = await remediate(errorEntry, {
-    claudeClient: { requestFix: async () => { throw new Error('should not be called'); } },
+    claudeClient: {
+      requestFix: async () => {
+        throw new Error('should not be called');
+      },
+    },
   });
 
   assert.strictEqual(result.status, 'unresolved');

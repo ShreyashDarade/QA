@@ -34,7 +34,13 @@ function makeError(id, partKey) {
 const passingDeps = () => ({
   resolveTargetFile: () => targetFile,
   runTests: async () => ({ passed: true }),
-  claudeClient: { requestFix: async () => ({ dryRun: false, summary: 'fixed it', fixedFile: 'function add(a, b) { return a + b; }\n' }) },
+  claudeClient: {
+    requestFix: async () => ({
+      dryRun: false,
+      summary: 'fixed it',
+      fixedFile: 'function add(a, b) { return a + b; }\n',
+    }),
+  },
   deploy: {
     commitAndDeploy: async () => ({ commit: 'dev123', branch: 'dev' }),
     promoteToProd: async () => ({ commit: 'prod123', branch: 'prod' }),
@@ -64,9 +70,17 @@ test('remediate: retries after a failing Postman run, then succeeds and promotes
     runCollection: async () => {
       postmanCalls += 1;
       if (postmanCalls === 1) {
-        return { skipped: false, allPassed: false, results: [{ name: 'add endpoint', method: 'GET', url: 'x', status: 500, ok: false }] };
+        return {
+          skipped: false,
+          allPassed: false,
+          results: [{ name: 'add endpoint', method: 'GET', url: 'x', status: 500, ok: false }],
+        };
       }
-      return { skipped: false, allPassed: true, results: [{ name: 'add endpoint', method: 'GET', url: 'x', status: 200, ok: true }] };
+      return {
+        skipped: false,
+        allPassed: true,
+        results: [{ name: 'add endpoint', method: 'GET', url: 'x', status: 200, ok: true }],
+      };
     },
   };
 
@@ -87,7 +101,9 @@ test('remediate: gives up after MAX_REMEDIATION_CYCLES and never promotes', asyn
     let promoted = false;
 
     const deps = passingDeps();
-    deps.postmanRunner = { runCollection: async () => ({ skipped: false, allPassed: false, results: [] }) };
+    deps.postmanRunner = {
+      runCollection: async () => ({ skipped: false, allPassed: false, results: [] }),
+    };
     deps.deploy.promoteToProd = async () => {
       promoted = true;
       return {};
@@ -112,4 +128,61 @@ test('remediate: marks unresolved immediately when no source file is registered 
 
   assert.strictEqual(result.status, 'unresolved');
   assert.strictEqual(result.history.length, 1);
+});
+
+test('remediate: writes and commits an AI-proposed companion test file', async () => {
+  const errorEntry = makeError('rl-5', 'math-part');
+  const deps = passingDeps();
+  deps.claudeClient = {
+    requestFix: async () => ({
+      dryRun: false,
+      summary: 'fixed it and added coverage',
+      fixedFile: 'function add(a, b) { return a + b; }\n',
+      testFilePath: 'tests/new-coverage.test.js',
+      testFile: "test('adds', () => {});",
+    }),
+  };
+  let committedFiles = null;
+  deps.deploy.commitAndDeploy = async (args) => {
+    committedFiles = args.files;
+    return { commit: 'dev123', branch: 'dev' };
+  };
+
+  const newTestFile = path.join(tmpRepo, 'tests', 'new-coverage.test.js');
+  try {
+    const result = await remediate(errorEntry, deps);
+
+    assert.strictEqual(result.status, 'fixed');
+    assert.deepStrictEqual(
+      committedFiles.sort(),
+      ['buggy.js', 'tests/new-coverage.test.js'].sort()
+    );
+    assert.strictEqual(fs.readFileSync(newTestFile, 'utf8'), "test('adds', () => {});");
+  } finally {
+    fs.rmSync(newTestFile, { force: true });
+  }
+});
+
+test('remediate: reverts both the fix and a new companion test file when local tests fail', async () => {
+  const errorEntry = makeError('rl-6', 'math-part');
+  const deps = passingDeps();
+  deps.claudeClient = {
+    requestFix: async () => ({
+      dryRun: false,
+      summary: 'bad fix',
+      fixedFile: 'this is not valid js',
+      testFilePath: 'tests/should-not-persist.test.js',
+      testFile: 'garbage',
+    }),
+  };
+  deps.runTests = async () => ({ passed: false, output: 'boom' });
+
+  const original = fs.readFileSync(targetFile, 'utf8');
+  const shouldNotPersist = path.join(tmpRepo, 'tests', 'should-not-persist.test.js');
+
+  const result = await remediate(errorEntry, deps);
+
+  assert.strictEqual(result.status, 'fix_failed');
+  assert.strictEqual(fs.readFileSync(targetFile, 'utf8'), original);
+  assert.strictEqual(fs.existsSync(shouldNotPersist), false);
 });

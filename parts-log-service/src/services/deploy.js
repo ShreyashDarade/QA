@@ -43,7 +43,6 @@ async function promoteToProd() {
 async function callDeployWebhook() {
   if (!config.deployWebhookUrl) return;
   await fetch(config.deployWebhookUrl, { method: 'POST' }).catch((err) => {
-    // eslint-disable-next-line no-console
     console.error('[deploy] webhook call failed:', err.message);
   });
 }

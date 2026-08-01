@@ -22,9 +22,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'event (string) is required' });
   }
 
-  const known = registry.findOne(
-    (r) => r.key === partKey || (r.aliases || []).includes(partKey)
-  );
+  const known = registry.findOne((r) => r.key === partKey || (r.aliases || []).includes(partKey));
 
   const entry = {
     id: uuid(),

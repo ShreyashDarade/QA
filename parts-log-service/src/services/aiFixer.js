@@ -50,7 +50,10 @@ async function remediate(errorEntry, deps = {}) {
     return errors.update(errorEntry.id, { status: 'skipped', note: 'AI_FIXER_ENABLED=false' });
   }
 
-  errors.update(errorEntry.id, { status: 'fixing', fixAttempts: (errorEntry.fixAttempts || 0) + 1 });
+  errors.update(errorEntry.id, {
+    status: 'fixing',
+    fixAttempts: (errorEntry.fixAttempts || 0) + 1,
+  });
 
   const targetFile = resolveTargetFile(errorEntry);
   if (!targetFile || !fs.existsSync(targetFile)) {
@@ -70,7 +73,10 @@ async function remediate(errorEntry, deps = {}) {
       fileContents: original,
     });
   } catch (err) {
-    return errors.update(errorEntry.id, { status: 'fix_failed', note: `AI request failed: ${err.message}` });
+    return errors.update(errorEntry.id, {
+      status: 'fix_failed',
+      note: `AI request failed: ${err.message}`,
+    });
   }
 
   if (result.dryRun || !result.fixedFile) {

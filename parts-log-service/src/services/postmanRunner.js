@@ -35,7 +35,7 @@ function resolveUrl(request, baseUrl) {
 
 function buildHeaders(request) {
   const headers = {};
-  for (const h of (request.header || [])) {
+  for (const h of request.header || []) {
     if (!h.disabled) headers[h.key] = h.value;
   }
   return headers;
@@ -43,7 +43,12 @@ function buildHeaders(request) {
 
 async function runCollection({ collectionPath, baseUrl, filter }) {
   if (!collectionPath || !fs.existsSync(collectionPath)) {
-    return { skipped: true, allPassed: true, results: [], note: 'No Postman collection configured - step skipped.' };
+    return {
+      skipped: true,
+      allPassed: true,
+      results: [],
+      note: 'No Postman collection configured - step skipped.',
+    };
   }
 
   const collection = JSON.parse(fs.readFileSync(collectionPath, 'utf8'));
@@ -51,7 +56,9 @@ async function runCollection({ collectionPath, baseUrl, filter }) {
 
   if (filter) {
     const matched = items.filter((it) =>
-      `${it.name} ${resolveUrl(it.request, baseUrl)}`.toLowerCase().includes(String(filter).toLowerCase())
+      `${it.name} ${resolveUrl(it.request, baseUrl)}`
+        .toLowerCase()
+        .includes(String(filter).toLowerCase())
     );
     // Narrow to the "affected" requests when we can identify them by name/
     // URL; fall back to the full collection otherwise.

@@ -26,9 +26,7 @@ function nowIso() {
 async function runOneCycle(errorEntry, deps) {
   // Step 1: retrieve error logs (this error plus recent history for the
   // same part, so the AI has failure context across retries).
-  const relatedLogs = errors
-    .find((e) => e.partKey === errorEntry.partKey)
-    .slice(-10);
+  const relatedLogs = errors.find((e) => e.partKey === errorEntry.partKey).slice(-10);
 
   // Step 2: analyze - resolve which file/component is responsible.
   const targetFile = deps.resolveTargetFile(errorEntry);
@@ -57,18 +55,48 @@ async function runOneCycle(errorEntry, deps) {
     return { outcome: 'unresolved', note: fix.summary };
   }
 
+  // Optional companion test file (new or updated) covering this bug. Guard
+  // against a path outside the repo the same way resolveTargetFile does -
+  // if it's suspicious, skip the test write rather than fail the whole fix
+  // over it.
+  let testFileAbs = null;
+  let testFileOriginal = null;
+  let testFileIsNew = false;
+  if (fix.testFilePath && fix.testFile) {
+    const resolved = path.resolve(config.repoRoot, fix.testFilePath);
+    if (resolved.startsWith(path.resolve(config.repoRoot))) {
+      testFileAbs = resolved;
+      testFileIsNew = !fs.existsSync(resolved);
+      testFileOriginal = testFileIsNew ? null : fs.readFileSync(resolved, 'utf8');
+    }
+  }
+
   fs.writeFileSync(targetFile, fix.fixedFile);
+  if (testFileAbs) {
+    fs.mkdirSync(path.dirname(testFileAbs), { recursive: true });
+    fs.writeFileSync(testFileAbs, fix.testFile);
+  }
 
   const unitTest = await deps.runTests();
   if (!unitTest.passed) {
     fs.writeFileSync(targetFile, original); // revert - never push a fix that fails locally
-    return { outcome: 'fix_failed', note: `Local test suite failed: ${unitTest.output || 'unknown failure'}` };
+    if (testFileAbs) {
+      if (testFileIsNew) fs.rmSync(testFileAbs);
+      else fs.writeFileSync(testFileAbs, testFileOriginal);
+    }
+    return {
+      outcome: 'fix_failed',
+      note: `Local test suite failed: ${unitTest.output || 'unknown failure'}`,
+    };
   }
 
   // Step 4: push to the development branch.
   const relFile = path.relative(config.repoRoot, targetFile);
+  const filesToCommit = testFileAbs
+    ? [relFile, path.relative(config.repoRoot, testFileAbs)]
+    : [relFile];
   const devDeploy = await deps.deploy.commitAndDeploy({
-    files: [relFile],
+    files: filesToCommit,
     branch: config.devBranch,
     message: `fix(auto): ${fix.summary || 'AI remediation'} [error ${errorEntry.id}]`,
   });
@@ -146,7 +174,6 @@ async function remediate(errorEntry, injected = {}) {
   for (let attempt = 1; attempt <= config.maxRemediationCycles; attempt += 1) {
     errors.update(errorEntry.id, { status: 'fixing', fixAttempts: attempt });
 
-    // eslint-disable-next-line no-await-in-loop
     const cycle = await runOneCycle(current, deps);
     history.push({ attempt, ...cycle });
 
@@ -156,12 +183,10 @@ async function remediate(errorEntry, injected = {}) {
 
     if (cycle.outcome === 'validated') {
       // Step 9 done (all APIs passed) - promote to prod, no human step.
-      // eslint-disable-next-line no-await-in-loop
       const prodDeploy = await deps.deploy.promoteToProd();
 
       // Step 10: continue monitoring after successful execution to confirm
       // stability before declaring victory.
-      // eslint-disable-next-line no-await-in-loop
       const stability = await deps.logMonitor.watch({
         partKey: errorEntry.partKey,
         sinceIso: nowIso(),

@@ -32,7 +32,10 @@ module.exports = {
   deployWebhookUrl: process.env.DEPLOY_WEBHOOK_URL || '',
 
   // Command run as a fast local gate before a fix is even pushed to dev.
-  testCommand: process.env.TEST_COMMAND || 'npm test',
+  // Default runs lint + format check + the full test suite, so a candidate
+  // fix that's stylistically inconsistent or that regresses any existing
+  // test never gets past this gate.
+  testCommand: process.env.TEST_COMMAND || 'npm run verify',
 
   // The retrieve-analyze-fix-push-restart-test-monitor loop
   // (remediationLoop.js) repeats up to this many times per error before
@@ -52,7 +55,8 @@ module.exports = {
   // affected APIs now succeed. Unconfigured (no POSTMAN_COLLECTION_PATH)
   // means this step is skipped and treated as passing, not failed.
   postmanCollectionPath: process.env.POSTMAN_COLLECTION_PATH || '',
-  postmanBaseUrl: process.env.POSTMAN_BASE_URL || `http://localhost:${Number(process.env.PORT) || 3000}`,
+  postmanBaseUrl:
+    process.env.POSTMAN_BASE_URL || `http://localhost:${Number(process.env.PORT) || 3000}`,
 
   // How long to watch application logs for new errors: once right after
   // each test cycle (short), and once more after a fix is promoted to prod

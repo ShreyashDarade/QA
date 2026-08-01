@@ -40,7 +40,10 @@ test('watch detects a new error for the part and returns early', async () => {
 
   assert.strictEqual(result.clean, false);
   assert.strictEqual(result.newErrors.length, 1);
-  assert.ok(elapsed < 2000, 'should return as soon as a new error is found, not wait out the full window');
+  assert.ok(
+    elapsed < 2000,
+    'should return as soon as a new error is found, not wait out the full window'
+  );
 });
 
 test('watch ignores the excluded error id and errors for other parts', async () => {

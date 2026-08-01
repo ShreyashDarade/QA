@@ -5,6 +5,10 @@ named unit of your system), with a deterministic error catcher and an
 autonomous AI remediation loop sitting behind it that fixes, redeploys, and
 live-validates before promoting to prod.
 
+See [`test-scenarios/chaos-scenarios.md`](test-scenarios/chaos-scenarios.md) for a library of
+realistic failure scenarios (Python/Node/Java errors, Kubernetes failures, datastore outages,
+cascading multi-service incidents, etc.) written to exercise this loop end to end.
+
 ## How it fits together
 
 ```
@@ -22,8 +26,11 @@ times) for each captured error:
 
 1. **Retrieve** recent log entries for the affected part.
 2. **Analyze** — look up the part's source file in the registry.
-3. **Fix** the root cause — ask Claude for a corrected file, apply it, and run
-   `TEST_COMMAND` as a fast local gate (fail → revert, retry).
+3. **Fix** the root cause — ask Claude for a corrected file (following the target file's
+   existing naming/style conventions, smallest-correct-fix first, and adding/updating a test if
+   the bug isn't already covered), apply it, and run `TEST_COMMAND` — lint + format check + the
+   full test suite — as a fast local gate (fail → revert both the fix and any new test file,
+   retry).
 4. **Push** the fix to `DEV_BRANCH`.
 5. **Restart** the Kubernetes deployment/pod for the part (`services/k8s.js`,
    skipped if `K8S_DEPLOYMENT` isn't set).
@@ -89,6 +96,18 @@ wiring it to real infra raises the stakes of a bad AI fix considerably.
 Consider branch protection / required status checks on `PROD_BRANCH` as a
 second automated gate even though there's no human one.
 
+### Scope of renaming during an autonomous fix
+
+The AI only ever sees one file at a time (the file the registry maps the failing part to), with
+no visibility into who else imports it. So `claudeClient.js`'s prompt explicitly allows renaming
+*new* helpers it introduces to something descriptive, but tells it **not** to rename anything the
+file exports or change public function signatures unless the rename is itself required to fix the
+bug - an unreviewed rename that breaks an unseen caller would ship straight to prod under this
+pipeline's autonomy model. Broader renames (a whole module, or the repository itself) are
+judgment calls that need cross-file/cross-repo visibility the single-file fix loop doesn't have,
+so they're treated as separate, human-reviewed changes rather than something the autonomous loop
+does on its own.
+
 ## API
 
 ### `POST /api/registry`
@@ -144,5 +163,9 @@ Copy `.env.example` to `.env`. Key variables:
 npm install
 cp .env.example .env
 npm start          # serves on :3000
-npm test           # runs the test suite (also used as the fast local gate)
+npm test           # runs the test suite only
+npm run lint        # eslint
+npm run format      # prettier --write
+npm run verify      # lint + format check + tests - this is TEST_COMMAND's default,
+                     # i.e. the fast local gate a fix must pass before it's pushed to dev
 ```

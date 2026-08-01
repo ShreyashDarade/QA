@@ -10,7 +10,10 @@ test('runCollection is skipped (and treated as passing) with no collection confi
 });
 
 test('runCollection is skipped when the configured file does not exist', async () => {
-  const result = await runCollection({ collectionPath: '/nonexistent/collection.json', baseUrl: 'http://x' });
+  const result = await runCollection({
+    collectionPath: '/nonexistent/collection.json',
+    baseUrl: 'http://x',
+  });
   assert.strictEqual(result.skipped, true);
   assert.strictEqual(result.allPassed, true);
 });
@@ -39,12 +42,18 @@ test('runCollection reports per-request pass/fail against a live server', async 
     JSON.stringify({
       item: [
         { name: 'ok request', request: { method: 'GET', header: [], url: '{{baseUrl}}/ok' } },
-        { name: 'broken request', request: { method: 'GET', header: [], url: '{{baseUrl}}/broken' } },
+        {
+          name: 'broken request',
+          request: { method: 'GET', header: [], url: '{{baseUrl}}/broken' },
+        },
       ],
     })
   );
 
-  const result = await runCollection({ collectionPath: tmpCollection, baseUrl: `http://127.0.0.1:${port}` });
+  const result = await runCollection({
+    collectionPath: tmpCollection,
+    baseUrl: `http://127.0.0.1:${port}`,
+  });
   assert.strictEqual(result.skipped, false);
   assert.strictEqual(result.allPassed, false);
   assert.strictEqual(result.results.find((r) => r.name === 'ok request').ok, true);

@@ -31,7 +31,6 @@ function createApp() {
 if (require.main === module) {
   const app = createApp();
   app.listen(config.port, () => {
-    // eslint-disable-next-line no-console
     console.log(`parts-log-service listening on :${config.port}`);
   });
 }
